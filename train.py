@@ -83,9 +83,11 @@ def increment_path(path, exist_ok=False):
         return f"{path}{n}"
 
 
+
 def train(data_dir, model_dir, args):
     seed_everything(args.seed)
 
+    # TODO 개인별 워크스페이스로??
     save_dir = increment_path(os.path.join(model_dir, args.name))
 
     # -- settings
@@ -93,7 +95,7 @@ def train(data_dir, model_dir, args):
     device = torch.device("cuda" if use_cuda else "cpu")
 
     # -- dataset
-    dataset_module = getattr(import_module("dataset"), args.dataset)  # default: BaseAugmentation
+    dataset_module = getattr(import_module("dataset"), args.dataset)  # default: MaskBaseDataset
     dataset = dataset_module(
         data_dir=data_dir,
     )
@@ -109,6 +111,7 @@ def train(data_dir, model_dir, args):
     dataset.set_transform(transform)
 
     # -- data_loader
+    # TODO 현재 랜덤 스플릿으로 구현됨 (stratified k fold ???)
     train_set, val_set = dataset.split_dataset()
 
     train_loader = DataLoader(
@@ -140,14 +143,18 @@ def train(data_dir, model_dir, args):
     criterion = create_criterion(args.criterion)  # default: cross_entropy
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
     optimizer = opt_module(
+        # TODO 궁금쓰 
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=args.lr,
+        # TODO 궁금쓰
         weight_decay=5e-4
     )
+    # TODO 궁금쓰
     scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
 
     # -- logging
     logger = SummaryWriter(log_dir=save_dir)
+    # TODO 로깅 정보 추가 소요(log by epoch???)
     with open(os.path.join(save_dir, 'config.json'), 'w', encoding='utf-8') as f:
         json.dump(vars(args), f, ensure_ascii=False, indent=4)
 
@@ -163,6 +170,7 @@ def train(data_dir, model_dir, args):
             inputs = inputs.to(device)
             labels = labels.to(device)
 
+            # TODO gradient accum??
             optimizer.zero_grad()
 
             outs = model(inputs)
@@ -178,6 +186,7 @@ def train(data_dir, model_dir, args):
                 train_loss = loss_value / args.log_interval
                 train_acc = matches / args.batch_size / args.log_interval
                 current_lr = get_lr(optimizer)
+                # TODO log파일로 남기는것에 대해?? (hohup ....)
                 print(
                     f"Epoch[{epoch}/{args.epochs}]({idx + 1}/{len(train_loader)}) || "
                     f"training loss {train_loss:4.4} || training accuracy {train_acc:4.2%} || lr {current_lr}"
@@ -221,6 +230,7 @@ def train(data_dir, model_dir, args):
             val_acc = np.sum(val_acc_items) / len(val_set)
             best_val_loss = min(best_val_loss, val_loss)
             if val_acc > best_val_acc:
+                # TODO log???(nohup....)
                 print(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
                 torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
                 best_val_acc = val_acc
@@ -234,6 +244,16 @@ def train(data_dir, model_dir, args):
             logger.add_figure("results", figure, epoch)
             print()
 
+def train_test(data_dir, model_dir, args):
+    # TODO 개인별 워크스페이스로??
+    save_dir = increment_path(os.path.join('./lab', args.my_name, model_dir, args.name), exist_ok=True)
+    print(save_dir)
+    print(os.environ.get('MYNAME'))
+    # with open(os.path.join(save_dir, 'config.json'), 'a+', encoding='utf-8') as f:
+    #     json.dump(vars(args), f, ensure_ascii=False, indent=4)
+    model = getattr(import_module("model"), args.model)
+    model()()
+    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -243,25 +263,34 @@ if __name__ == '__main__':
     load_dotenv(verbose=True)
 
     # Data and model checkpoints directories
-    parser.add_argument('--seed', type=int, default=42, help='random seed (default: 42)')
+    parser.add_argument('--seed', type=int, default=32, help='random seed (default: 32)')
+    # TODO epoch
     parser.add_argument('--epochs', type=int, default=1, help='number of epochs to train (default: 1)')
     parser.add_argument('--dataset', type=str, default='MaskBaseDataset', help='dataset augmentation type (default: MaskBaseDataset)')
     parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
+    # TODO 이미지 사이즈
     parser.add_argument("--resize", nargs="+", type=list, default=[128, 96], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
+    # TODO Adam
     parser.add_argument('--optimizer', type=str, default='SGD', help='optimizer type (default: SGD)')
+    # TODO lr(3e-5)
     parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--criterion', type=str, default='cross_entropy', help='criterion type (default: cross_entropy)')
     parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')
+    # TODO 1?? (심신의 안정...)
     parser.add_argument('--log_interval', type=int, default=20, help='how many batches to wait before logging training status')
+    # TODO 어떻게 동작하는거지
     parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
 
     # Container environment
     parser.add_argument('--data_dir', type=str, default=os.environ.get('SM_CHANNEL_TRAIN', '/opt/ml/input/data/train/images'))
     parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_MODEL_DIR', './model'))
+
+    # Custom env
+    parser.add_argument('--my_name', type=str, default=os.environ.get('MYNAME', 'anonymous'))
 
     args = parser.parse_args()
     print(args)
@@ -269,4 +298,5 @@ if __name__ == '__main__':
     data_dir = args.data_dir
     model_dir = args.model_dir
 
-    train(data_dir, model_dir, args)
+    # train(data_dir, model_dir, args)
+    train_test(data_dir, model_dir, args)

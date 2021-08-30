@@ -11,6 +11,13 @@ from torch.utils.data import Dataset, Subset, random_split
 from torchvision import transforms
 from torchvision.transforms import *
 
+from lab.jh.jh_dataset import *
+from lab.js.js_dataset import *
+from lab.ks.ks_dataset import *
+from lab.sw.sw_dataset import *
+from lab.th.th_dataset import *
+from lab.sw.sw_dataset import *
+
 IMG_EXTENSIONS = [
     ".jpg", ".JPG", ".jpeg", ".JPEG", ".png",
     ".PNG", ".ppm", ".PPM", ".bmp", ".BMP",
