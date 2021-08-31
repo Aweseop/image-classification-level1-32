@@ -1,6 +1,6 @@
 import os
 import random
-from collections import defaultdict, Counter
+from collections import defaultdict
 from enum import Enum
 from typing import Tuple, List
 
@@ -336,8 +336,6 @@ class MaskSKFSplitByProfileDataset(MaskSplitByProfileDataset):
 
         skf = StratifiedKFold(n_splits=k)
         train_indices, val_indices = next(iter(skf.split(X, y)))
-        print(Counter(np.array(y)[train_indices]))
-        print(Counter(np.array(y)[val_indices]))
         return {
             "train": train_indices,
             "val": val_indices

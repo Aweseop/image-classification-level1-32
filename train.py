@@ -7,6 +7,7 @@ import random
 import re
 from importlib import import_module
 from pathlib import Path
+import GPUtil
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -105,7 +106,7 @@ def create_path(path: str):
 def train(data_dir, model_dir, args):
     seed_everything(args.seed)
 
-    save_dir = increment_path(os.path.join(model_dir, args.name))
+    save_dir = increment_path(os.path.join('./lab', args.my_name, model_dir, args.name))
 
     # -- settings
     use_cuda = torch.cuda.is_available()
@@ -207,7 +208,7 @@ def train(data_dir, model_dir, args):
                 
                 textLogger(f"Epoch[{epoch}/{args.epochs}]({idx + 1}/{len(train_loader)}) || ")
                 textLogger(f"training loss {train_loss:4.4} || training accuracy {train_acc:4.2%} || lr {current_lr}")
-
+                GPUtil.showUtilization()
                 logger.add_scalar("Train/loss", train_loss, epoch * len(train_loader) + idx)
                 logger.add_scalar("Train/accuracy", train_acc, epoch * len(train_loader) + idx)
 
@@ -261,6 +262,7 @@ def train(data_dir, model_dir, args):
 
             textLogger(f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2} || ")
             textLogger(f"best acc : {best_val_acc:4.2%}, best loss: {best_val_loss:4.2}, f1 score: {f1score:4.2}")
+            GPUtil.showUtilization()
             logger.add_scalar("Val/loss", val_loss, epoch)
             logger.add_scalar("Val/accuracy", val_acc, epoch)
             logger.add_figure("results", figure, epoch)
@@ -315,5 +317,5 @@ if __name__ == '__main__':
     data_dir = args.data_dir
     model_dir = args.model_dir
 
-    # train(data_dir, model_dir, args)
-    train_test(data_dir, model_dir, args)
+    train(data_dir, model_dir, args)
+    # train_test(data_dir, model_dir, args)

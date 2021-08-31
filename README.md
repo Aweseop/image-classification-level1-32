@@ -38,6 +38,6 @@
 
 
 ### workspace env
-- vi /root/.bashrc
+- vi /etc/bash.bashrc
 - export MYNAME=ks
-- source /root/.bashrc
+- source /etc/bash.bashrc
