@@ -8,7 +8,7 @@ class TextLogger():
         self.saveDir = os.path.join(saveDir, 'log.txt')
     
     def __call__(self, msg: str) -> Any:
-        now = datetime.datetime.now(timezone('Asia/Seoul'))
+        now = datetime.datetime.now(timezone('Asia/Seoul')).strftime("%Y-%m-%d %H:%M:%S")
         with open(self.saveDir, mode='a+', encoding='utf-8') as f:
             print(msg)
             f.writelines(f'\n[{now}]\t{msg}')
