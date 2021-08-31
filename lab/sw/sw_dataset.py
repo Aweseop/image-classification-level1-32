@@ -47,4 +47,4 @@ class GaussianNoiseAugmentation:
 
 # --------- Custom transform -----------
 
-from ...base_dataset import AddGaussianNoise
+from base_dataset import AddGaussianNoise
