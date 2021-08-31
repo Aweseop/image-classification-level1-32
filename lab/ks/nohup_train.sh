@@ -1,0 +1,3 @@
+python train.py --name age_cls --dataset KSAgeDataset --model KSResnetModel --valid_batch_size 16 --augmentation CustomAugmentation --epochs 15
+python train.py --name gen_cls --dataset KSGenderDataset --model KSResnetModel --valid_batch_size 16 --augmentation CustomAugmentation --epochs 15
+python train.py --name mask_cls --dataset KSMaskDataset --model KSResnetModel --valid_batch_size 16 --augmentation CustomAugmentation --epochs 15
