@@ -2,3 +2,4 @@
 
 # ignore individual models
 **/model/
+trainList/*

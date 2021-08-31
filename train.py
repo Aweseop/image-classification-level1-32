@@ -208,9 +208,10 @@ def train(data_dir, model_dir, args):
                 train_acc = matches / args.batch_size / args.log_interval
                 current_lr = get_lr(optimizer)
                 
+                gpu = GPUtil.getGPUs()
                 textLogger(f"Epoch[{epoch}/{args.epochs}]({idx + 1}/{len(train_loader)}) || ")
-                textLogger(f"training loss {train_loss:4.4} || training accuracy {train_acc:4.2%} || lr {current_lr}")
-                GPUtil.showUtilization()
+                textLogger(f"training loss {train_loss:4.4} || training accuracy {train_acc:4.2%} || lr {current_lr}"
+                    + f" || GPU : {gpu[0].load*100:.2f}% || MEM: {gpu[0].memoryUtil*100:.2f}%")
                 logger.add_scalar("Train/loss", train_loss, epoch * len(train_loader) + idx)
                 logger.add_scalar("Train/accuracy", train_acc, epoch * len(train_loader) + idx)
 
@@ -265,9 +266,10 @@ def train(data_dir, model_dir, args):
 
             f1score = f1_score(f1_labels, f1_preds, average='macro')
 
+            gpu = GPUtil.getGPUs()
             textLogger(f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2} || ")
             textLogger(f"best acc : {best_val_acc:4.2%}, best loss: {best_val_loss:4.2}, f1 score: {f1score:4.2}")
-            GPUtil.showUtilization()
+            textLogger(f"GPU : {gpu[0].load*100}% || MEM: {gpu[0].memoryUtil*100:.2f}%")
             logger.add_scalar("Val/loss", val_loss, epoch)
             logger.add_scalar("Val/accuracy", val_acc, epoch)
             logger.add_scalar("Val/f1", f1score, epoch)
@@ -310,7 +312,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=5, help='number of epochs to train (default: 5)')
     parser.add_argument('--dataset', type=str, default='MaskSKFSplitByProfileDataset', help='dataset augmentation type (default: MaskSKFSplitByProfileDataset)')
     parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
-    parser.add_argument("--resize", nargs="+", type=list, default=[512, 384], help='resize size for image when training')
+    parser.add_argument("--resize", nargs="+",type=int, default=[512, 384], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
