@@ -2,4 +2,4 @@
 
 # ignore individual models
 **/model/
-train.sh
+train*.sh
