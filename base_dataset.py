@@ -12,8 +12,7 @@ from torchvision import transforms
 from torchvision.transforms import *
 from sklearn.model_selection import StratifiedKFold
 
-
-
+from label_changer import labelChanger
 
 IMG_EXTENSIONS = [
     ".jpg", ".JPG", ".jpeg", ".JPEG", ".png",
@@ -151,9 +150,13 @@ class MaskBaseDataset(Dataset):
                     continue
 
                 img_path = os.path.join(self.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
-                mask_label = self._file_names[_file_name]
+                # mask_label = self._file_names[_file_name]
 
                 id, gender, race, age = profile.split("_")
+
+
+                mask_label, gender, age = labelChanger(profile,_file_name, gender, age, self._file_names)
+
                 gender_label = GenderLabels.from_str(gender)
                 age_label = AgeLabels.from_number(age)
 
@@ -281,9 +284,11 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
                         continue
 
                     img_path = os.path.join(self.data_dir, profile, file_name)  # (resized_data, 000004_male_Asian_54, mask1.jpg)
-                    mask_label = self._file_names[_file_name]
 
                     id, gender, race, age = profile.split("_")
+
+                    mask_label, gender, age = labelChanger(profile,_file_name, gender, age, self._file_names)
+
                     gender_label = GenderLabels.from_str(gender)
                     age_label = AgeLabels.from_number(age)
 
@@ -294,7 +299,6 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
 
                     self.indices[phase].append(cnt)
                     cnt += 1
-
     def split_dataset(self) -> List[Subset]:
         return [Subset(self, indices) for phase, indices in self.indices.items()]
 
