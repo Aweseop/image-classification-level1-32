@@ -18,6 +18,8 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.cuda.amp import autocast
 from sklearn.metrics import f1_score
+# TODO is wandb necessary...?
+# import wandb
 
 from dataset import MaskBaseDataset
 from loss import create_criterion
@@ -97,12 +99,6 @@ def create_path(path: str):
         create_path(parent)
     os.mkdir(path)
         
-
-
-
-
-
-
 def train(data_dir, model_dir, args):
     seed_everything(args.seed)
 
@@ -173,6 +169,12 @@ def train(data_dir, model_dir, args):
         json.dump(vars(args), f, ensure_ascii=False, indent=4)
     # text logger
     textLogger = TextLogger(saveDir=save_dir)
+    # wandb
+    # TODO is wandb necessary...?
+    # wandb.init(dir=save_dir)
+    # wandb.config.update(args)
+    # wandb.watch(model)
+    # wandb_1 = []
 
     # -- amp
     scaler = GradScaler()
@@ -239,9 +241,9 @@ def train(data_dir, model_dir, args):
                 val_loss_items.append(loss_item)
                 val_acc_items.append(acc_item)
 
-                f1_labels += labels
-                f1_preds += preds
-
+                f1_labels = np.concatenate([f1_labels, labels.cpu().numpy()])
+                f1_preds = np.concatenate([f1_preds, preds.cpu().numpy()])
+              
                 if figure is None:
                     inputs_np = torch.clone(inputs).detach().cpu().permute(0, 2, 3, 1).numpy()
                     inputs_np = dataset_module.denormalize_image(inputs_np, dataset.mean, dataset.std)
@@ -251,6 +253,9 @@ def train(data_dir, model_dir, args):
 
             val_loss = np.sum(val_loss_items) / len(val_loader)
             val_acc = np.sum(val_acc_items) / len(val_set)
+            # TODO is wandb necessary...?
+            # wandb_1.append(val_acc)
+
             best_val_loss = min(best_val_loss, val_loss)
             if val_acc > best_val_acc:
                 textLogger(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
@@ -265,7 +270,20 @@ def train(data_dir, model_dir, args):
             GPUtil.showUtilization()
             logger.add_scalar("Val/loss", val_loss, epoch)
             logger.add_scalar("Val/accuracy", val_acc, epoch)
+            logger.add_scalar("Val/f1", f1score, epoch)
             logger.add_figure("results", figure, epoch)
+            
+            # TODO is wandb necessary...?
+            # data = [[x, y] for (x, y) in zip(range(epoch+1), wandb_1)]
+            # table = wandb.Table(data=data, columns=['x', 'y'])
+            # wandb.log({
+            #     "Valid Acc": val_acc,
+            #     "Valid Loss": val_loss,
+            #     "Valid Best Acc": best_val_acc,
+            #     "Valid Best Loss": best_val_loss,
+            #     "F1 Score": f1score,
+            #     "wandb_1": wandb.plot.line(table, "x", "y", title="test chart")
+            # })
             print()
 
 def train_test(data_dir, model_dir, args):

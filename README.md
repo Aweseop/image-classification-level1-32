@@ -41,3 +41,9 @@
 - vi /etc/bash.bashrc
 - export MYNAME=ks
 - source /etc/bash.bashrc
+
+
+### wandb login
+- pip install wandb
+- wandb login 
+- https://wandb.ai/authorize 에서 api key 복사 후 터미널 입력
