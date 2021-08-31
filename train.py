@@ -125,7 +125,6 @@ def train(data_dir, model_dir, args):
     dataset.set_transform(transform)
 
     # -- data_loader
-    # TODO 현재 랜덤 스플릿으로 구현됨 (stratified k fold ???)
     train_set, val_set = dataset.split_dataset()
 
     train_loader = DataLoader(
