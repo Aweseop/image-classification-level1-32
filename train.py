@@ -14,6 +14,9 @@ import torch
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+from torch.cuda.amp.grad_scaler import GradScaler
+from torch.cuda.amp import autocast
+from sklearn.metrics import f1_score
 
 from dataset import MaskBaseDataset
 from loss import create_criterion
@@ -170,6 +173,9 @@ def train(data_dir, model_dir, args):
     # text logger
     textLogger = TextLogger(saveDir=save_dir)
 
+    # -- amp
+    scaler = GradScaler()
+
     best_val_acc = 0
     best_val_loss = np.inf
     for epoch in range(args.epochs):
@@ -184,12 +190,13 @@ def train(data_dir, model_dir, args):
 
             optimizer.zero_grad()
 
-            outs = model(inputs)
-            preds = torch.argmax(outs, dim=-1)
-            loss = criterion(outs, labels)
-
-            loss.backward()
-            optimizer.step()
+            with autocast():
+                outs = model(inputs)
+                preds = torch.argmax(outs, dim=-1)
+                loss = criterion(outs, labels)
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
 
             loss_value += loss.item()
             matches += (preds == labels).sum().item()
@@ -215,6 +222,8 @@ def train(data_dir, model_dir, args):
             model.eval()
             val_loss_items = []
             val_acc_items = []
+            f1_labels = []
+            f1_preds = []
             figure = None
             for val_batch in val_loader:
                 inputs, labels = val_batch
@@ -228,6 +237,9 @@ def train(data_dir, model_dir, args):
                 acc_item = (labels == preds).sum().item()
                 val_loss_items.append(loss_item)
                 val_acc_items.append(acc_item)
+
+                f1_labels += labels
+                f1_preds += preds
 
                 if figure is None:
                     inputs_np = torch.clone(inputs).detach().cpu().permute(0, 2, 3, 1).numpy()
@@ -245,8 +257,10 @@ def train(data_dir, model_dir, args):
                 best_val_acc = val_acc
             torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
 
+            f1score = f1_score(f1_labels, f1_preds, average='macro')
+
             textLogger(f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2} || ")
-            textLogger(f"best acc : {best_val_acc:4.2%}, best loss: {best_val_loss:4.2}")
+            textLogger(f"best acc : {best_val_acc:4.2%}, best loss: {best_val_loss:4.2}, f1 score: {f1score:4.2}")
             logger.add_scalar("Val/loss", val_loss, epoch)
             logger.add_scalar("Val/accuracy", val_acc, epoch)
             logger.add_figure("results", figure, epoch)
