@@ -2,6 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from lab.jh.jh_loss import jh_criterion_entrypoints
+from lab.js.js_loss import js_criterion_entrypoints
+from lab.ks.ks_loss import ks_criterion_entrypoints
+from lab.sw.sw_loss import sw_criterion_entrypoints
+from lab.th.th_loss import th_criterion_entrypoints
+from lab.yy.yy_loss import yy_criterion_entrypoints
 
 # https://discuss.pytorch.org/t/is-this-a-correct-implementation-for-focal-loss-in-pytorch/43327/8
 class FocalLoss(nn.Module):
@@ -71,6 +77,12 @@ _criterion_entrypoints = {
     'label_smoothing': LabelSmoothingLoss,
     'f1': F1Loss
 }
+_criterion_entrypoints.update(jh_criterion_entrypoints)
+_criterion_entrypoints.update(js_criterion_entrypoints)
+_criterion_entrypoints.update(ks_criterion_entrypoints)
+_criterion_entrypoints.update(sw_criterion_entrypoints)
+_criterion_entrypoints.update(th_criterion_entrypoints)
+_criterion_entrypoints.update(yy_criterion_entrypoints)
 
 
 def criterion_entrypoint(criterion_name):
