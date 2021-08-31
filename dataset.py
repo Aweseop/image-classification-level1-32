@@ -1,6 +1,6 @@
 import os
 import random
-from collections import defaultdict
+from collections import defaultdict, Counter
 from enum import Enum
 from typing import Tuple, List
 
@@ -10,6 +10,8 @@ from PIL import Image
 from torch.utils.data import Dataset, Subset, random_split
 from torchvision import transforms
 from torchvision.transforms import *
+from sklearn.model_selection import StratifiedKFold
+
 
 from lab.jh.jh_dataset import *
 from lab.js.js_dataset import *
@@ -17,6 +19,8 @@ from lab.ks.ks_dataset import *
 from lab.sw.sw_dataset import *
 from lab.th.th_dataset import *
 from lab.sw.sw_dataset import *
+
+
 
 IMG_EXTENSIONS = [
     ".jpg", ".JPG", ".jpeg", ".JPEG", ".png",
@@ -256,8 +260,9 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
         super().__init__(data_dir, mean, std, val_ratio)
 
     @staticmethod
-    def _split_profile(profiles, val_ratio):
+    def _split_profile(profiles, val_ratio, **kargs):
         length = len(profiles)
+        print(profiles)
         n_val = int(length * val_ratio)
 
         val_indices = set(random.choices(range(length), k=n_val))
@@ -299,6 +304,45 @@ class MaskSplitByProfileDataset(MaskBaseDataset):
 
     def split_dataset(self) -> List[Subset]:
         return [Subset(self, indices) for phase, indices in self.indices.items()]
+
+class MaskSKFSplitByProfileDataset(MaskSplitByProfileDataset):
+    """
+        train / val 나누는 기준을 이미지에 대해서 random 이 아닌
+        사람(profile)을 기준으로 stratified k-fold로 나눕니다.
+        구현은 val_ratio 에 맞게 train / val 나누는 것을 이미지 전체가 아닌 사람(profile)에 대해서 진행하여 indexing 을 합니다
+        이후 `split_dataset` 에서 index 에 맞게 Subset 으로 dataset 을 분기합니다.
+    """
+
+    def __init__(self, data_dir, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246), val_ratio=0.2):
+        super().__init__(data_dir, mean, std, val_ratio)
+
+    @classmethod
+    def agg_label(self, profile):
+        id, gender, race, age = profile.split("_")
+        g_label = 0 if gender == 'male' else 1
+        a_label = 0
+        if 30<= int(age) < 60:
+            a_label = 1
+        elif int(age) >= 60:
+            a_label = 2
+        return g_label*3 + a_label
+
+    @staticmethod
+    def _split_profile(profiles, val_ratio):
+        length = len(profiles)
+        X = np.zeros(length)
+        y = list(map(MaskSKFSplitByProfileDataset.agg_label, profiles))
+        k = int(1/val_ratio)
+
+        skf = StratifiedKFold(n_splits=k)
+        train_indices, val_indices = next(iter(skf.split(X, y)))
+        print(Counter(np.array(y)[train_indices]))
+        print(Counter(np.array(y)[val_indices]))
+        return {
+            "train": train_indices,
+            "val": val_indices
+        }
+    
 
 
 class TestDataset(Dataset):

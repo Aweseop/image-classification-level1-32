@@ -17,6 +17,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from dataset import MaskBaseDataset
 from loss import create_criterion
+from util import TextLogger
 
 
 def seed_everything(seed):
@@ -74,20 +75,33 @@ def increment_path(path, exist_ok=False):
     """
     path = Path(path)
     if (path.exists() and exist_ok) or (not path.exists()):
+        if not path.exists():
+            create_path(str(path))
         return str(path)
     else:
         dirs = glob.glob(f"{path}*")
         matches = [re.search(rf"%s(\d+)" % path.stem, d) for d in dirs]
         i = [int(m.groups()[0]) for m in matches if m]
         n = max(i) + 1 if i else 2
-        return f"{path}{n}"
+        newPath = f"{path}{n}"
+        create_path(newPath)
+        return newPath
+
+def create_path(path: str):
+    parent, child = os.path.split(path)
+    if not os.path.exists(parent):
+        create_path(parent)
+    os.mkdir(path)
+        
+
+
+
 
 
 
 def train(data_dir, model_dir, args):
     seed_everything(args.seed)
 
-    # TODO 개인별 워크스페이스로??
     save_dir = increment_path(os.path.join(model_dir, args.name))
 
     # -- settings
@@ -143,20 +157,19 @@ def train(data_dir, model_dir, args):
     criterion = create_criterion(args.criterion)  # default: cross_entropy
     opt_module = getattr(import_module("torch.optim"), args.optimizer)  # default: SGD
     optimizer = opt_module(
-        # TODO 궁금쓰 
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=args.lr,
-        # TODO 궁금쓰
         weight_decay=5e-4
     )
-    # TODO 궁금쓰
     scheduler = StepLR(optimizer, args.lr_decay_step, gamma=0.5)
 
     # -- logging
+    # tensorboard
     logger = SummaryWriter(log_dir=save_dir)
-    # TODO 로깅 정보 추가 소요(log by epoch???)
     with open(os.path.join(save_dir, 'config.json'), 'w', encoding='utf-8') as f:
         json.dump(vars(args), f, ensure_ascii=False, indent=4)
+    # text logger
+    textLogger = TextLogger(saveDir=save_dir)
 
     best_val_acc = 0
     best_val_loss = np.inf
@@ -170,7 +183,6 @@ def train(data_dir, model_dir, args):
             inputs = inputs.to(device)
             labels = labels.to(device)
 
-            # TODO gradient accum??
             optimizer.zero_grad()
 
             outs = model(inputs)
@@ -186,11 +198,10 @@ def train(data_dir, model_dir, args):
                 train_loss = loss_value / args.log_interval
                 train_acc = matches / args.batch_size / args.log_interval
                 current_lr = get_lr(optimizer)
-                # TODO log파일로 남기는것에 대해?? (hohup ....)
-                print(
-                    f"Epoch[{epoch}/{args.epochs}]({idx + 1}/{len(train_loader)}) || "
-                    f"training loss {train_loss:4.4} || training accuracy {train_acc:4.2%} || lr {current_lr}"
-                )
+                
+                textLogger(f"Epoch[{epoch}/{args.epochs}]({idx + 1}/{len(train_loader)}) || ")
+                textLogger(f"training loss {train_loss:4.4} || training accuracy {train_acc:4.2%} || lr {current_lr}")
+
                 logger.add_scalar("Train/loss", train_loss, epoch * len(train_loader) + idx)
                 logger.add_scalar("Train/accuracy", train_acc, epoch * len(train_loader) + idx)
 
@@ -230,29 +241,28 @@ def train(data_dir, model_dir, args):
             val_acc = np.sum(val_acc_items) / len(val_set)
             best_val_loss = min(best_val_loss, val_loss)
             if val_acc > best_val_acc:
-                # TODO log???(nohup....)
-                print(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
+                textLogger(f"New best model for val accuracy : {val_acc:4.2%}! saving the best model..")
                 torch.save(model.module.state_dict(), f"{save_dir}/best.pth")
                 best_val_acc = val_acc
             torch.save(model.module.state_dict(), f"{save_dir}/last.pth")
-            print(
-                f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2} || "
-                f"best acc : {best_val_acc:4.2%}, best loss: {best_val_loss:4.2}"
-            )
+
+            textLogger(f"[Val] acc : {val_acc:4.2%}, loss: {val_loss:4.2} || ")
+            textLogger(f"best acc : {best_val_acc:4.2%}, best loss: {best_val_loss:4.2}")
             logger.add_scalar("Val/loss", val_loss, epoch)
             logger.add_scalar("Val/accuracy", val_acc, epoch)
             logger.add_figure("results", figure, epoch)
             print()
 
 def train_test(data_dir, model_dir, args):
-    # TODO 개인별 워크스페이스로??
-    save_dir = increment_path(os.path.join('./lab', args.my_name, model_dir, args.name), exist_ok=True)
+    save_dir = increment_path(os.path.join('./lab', args.my_name, model_dir, args.name))
     print(save_dir)
     print(os.environ.get('MYNAME'))
+    textLogger = TextLogger(saveDir=save_dir)
+    textLogger('hello world')
     # with open(os.path.join(save_dir, 'config.json'), 'a+', encoding='utf-8') as f:
     #     json.dump(vars(args), f, ensure_ascii=False, indent=4)
-    model = getattr(import_module("model"), args.model)
-    model()()
+    # model = getattr(import_module("model"), args.model)
+    # model()()
     
 
 if __name__ == '__main__':
@@ -264,25 +274,19 @@ if __name__ == '__main__':
 
     # Data and model checkpoints directories
     parser.add_argument('--seed', type=int, default=32, help='random seed (default: 32)')
-    # TODO epoch
-    parser.add_argument('--epochs', type=int, default=1, help='number of epochs to train (default: 1)')
-    parser.add_argument('--dataset', type=str, default='MaskBaseDataset', help='dataset augmentation type (default: MaskBaseDataset)')
+    parser.add_argument('--epochs', type=int, default=5, help='number of epochs to train (default: 5)')
+    parser.add_argument('--dataset', type=str, default='MaskSKFSplitByProfileDataset', help='dataset augmentation type (default: MaskSKFSplitByProfileDataset)')
     parser.add_argument('--augmentation', type=str, default='BaseAugmentation', help='data augmentation type (default: BaseAugmentation)')
-    # TODO 이미지 사이즈
-    parser.add_argument("--resize", nargs="+", type=list, default=[128, 96], help='resize size for image when training')
+    parser.add_argument("--resize", nargs="+", type=list, default=[512, 384], help='resize size for image when training')
     parser.add_argument('--batch_size', type=int, default=64, help='input batch size for training (default: 64)')
     parser.add_argument('--valid_batch_size', type=int, default=1000, help='input batch size for validing (default: 1000)')
     parser.add_argument('--model', type=str, default='BaseModel', help='model type (default: BaseModel)')
-    # TODO Adam
-    parser.add_argument('--optimizer', type=str, default='SGD', help='optimizer type (default: SGD)')
-    # TODO lr(3e-5)
-    parser.add_argument('--lr', type=float, default=1e-3, help='learning rate (default: 1e-3)')
+    parser.add_argument('--optimizer', type=str, default='Adam', help='optimizer type (default: Adam)')
+    parser.add_argument('--lr', type=float, default=3e-5, help='learning rate (default: 3e-5)')
     parser.add_argument('--val_ratio', type=float, default=0.2, help='ratio for validaton (default: 0.2)')
     parser.add_argument('--criterion', type=str, default='cross_entropy', help='criterion type (default: cross_entropy)')
-    parser.add_argument('--lr_decay_step', type=int, default=20, help='learning rate scheduler deacy step (default: 20)')
-    # TODO 1?? (심신의 안정...)
+    parser.add_argument('--lr_decay_step', type=int, default=5, help='learning rate scheduler deacy step (default: 5)')
     parser.add_argument('--log_interval', type=int, default=20, help='how many batches to wait before logging training status')
-    # TODO 어떻게 동작하는거지
     parser.add_argument('--name', default='exp', help='model save at {SM_MODEL_DIR}/{name}')
 
     # Container environment
