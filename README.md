@@ -47,3 +47,8 @@
 - pip install wandb
 - wandb login 
 - https://wandb.ai/authorize 에서 api key 복사 후 터미널 입력
+
+
+### nohup (background execution)
+- chmod 711 lab/ks/nohup_train.sh   
+- nohup lab/ks/nohup_train.sh 1>/dev/null 2>&1 &     
