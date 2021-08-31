@@ -214,7 +214,7 @@ def train(data_dir, model_dir, args):
 
                 loss_value = 0
                 matches = 0
-
+            
         scheduler.step()
 
         # val loop
@@ -239,9 +239,9 @@ def train(data_dir, model_dir, args):
                 val_loss_items.append(loss_item)
                 val_acc_items.append(acc_item)
 
-                f1_labels += labels
-                f1_preds += preds
-
+                f1_labels = np.concatenate([f1_labels, labels.cpu().numpy()])
+                f1_preds = np.concatenate([f1_preds, preds.cpu().numpy()])
+              
                 if figure is None:
                     inputs_np = torch.clone(inputs).detach().cpu().permute(0, 2, 3, 1).numpy()
                     inputs_np = dataset_module.denormalize_image(inputs_np, dataset.mean, dataset.std)
