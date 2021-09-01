@@ -2,5 +2,5 @@
 
 # ignore individual files
 **/model/
-trainList/*
 **/output/
+train*.sh

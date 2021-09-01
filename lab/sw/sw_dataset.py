@@ -21,7 +21,7 @@ class BaseAugmentation:
     def __call__(self, image):
         return self.transform(image)
 
-class ColorJitterAugmentation:
+class ColorJitter1111Augmentation:
     def __init__(self, resize, mean, std, **args):
         self.transform = transforms.Compose([
             Resize(resize, Image.BILINEAR),
@@ -32,6 +32,55 @@ class ColorJitterAugmentation:
 
     def __call__(self, image):
         return self.transform(image)
+
+class ColorJitter1000Augmentation:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = transforms.Compose([
+            Resize(resize, Image.BILINEAR),
+            ColorJitter(0.1, 0, 0, 0),    
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
+class ColorJitter0100Augmentation:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = transforms.Compose([
+            Resize(resize, Image.BILINEAR),
+            ColorJitter(0, 0.1, 0, 0),    
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
+class ColorJitter0010Augmentation:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = transforms.Compose([
+            Resize(resize, Image.BILINEAR),
+            ColorJitter(0, 0, 0.1, 0),    
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
+class ColorJitter0001Augmentation:
+    def __init__(self, resize, mean, std, **args):
+        self.transform = transforms.Compose([
+            Resize(resize, Image.BILINEAR),
+            ColorJitter(0, 0, 0, 0.1),    
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ])
+
+    def __call__(self, image):
+        return self.transform(image)
+
 
 class GaussianNoiseAugmentation:
     def __init__(self, resize, mean, std, **args):
@@ -47,4 +96,4 @@ class GaussianNoiseAugmentation:
 
 # --------- Custom transform -----------
 
-from ...base_dataset import AddGaussianNoise
+from base_dataset import AddGaussianNoise
