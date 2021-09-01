@@ -1,12 +1,15 @@
 import argparse
+
 import os
+import sys
+sys.path.append('/opt/ml/image-classification-level1-32')
 from importlib import import_module
 
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
-from dataset import TestDataset, MaskBaseDataset
+from dataset import TestDataset, MaskBaseDataset, KSTestDataset
 from util import TextLogger, create_path
 
 def load_model(saved_model, num_classes, device):
@@ -37,15 +40,21 @@ def inference(data_dir, model_dir, output_dir, args):
     num_classes = args.num_classes  # 18
 
 
-    model = load_model(model_dir, num_classes, device).to(device)
-    model.eval()
+    # model = load_model(model_dir, num_classes, device).to(device)
+    # model.eval()
+    age_model = load_model(os.path.join('./lab', args.my_name, args.model_dir, "age_cls"), 3, device).to(device)
+    gen_model = load_model(os.path.join('./lab', args.my_name, args.model_dir, "gen_cls"), 2, device).to(device)
+    mask_model = load_model(os.path.join('./lab', args.my_name, args.model_dir, "mask_cls"), 3, device).to(device)
+    age_model.eval()
+    gen_model.eval()
+    mask_model.eval()
 
     img_root = os.path.join(data_dir, 'images')
     info_path = os.path.join(data_dir, 'info.csv')
     info = pd.read_csv(info_path)
 
     img_paths = [os.path.join(img_root, img_id) for img_id in info.ImageID]
-    dataset = TestDataset(img_paths, args.resize)
+    dataset = KSTestDataset(img_paths, args.resize)
         # -- augmentation
     transform_module = getattr(import_module("dataset"), args.augmentation)  # default: BaseAugmentation
     transform = transform_module(
@@ -69,8 +78,15 @@ def inference(data_dir, model_dir, output_dir, args):
     with torch.no_grad():
         for idx, images in enumerate(loader):
             images = images.to(device)
-            pred = model(images)
-            pred = pred.argmax(dim=-1)
+            # pred = model(images)
+            age_outs = age_model(images)
+            gen_outs = gen_model(images)
+            mask_outs = mask_model(images)
+            # pred = pred.argmax(dim=-1)
+            age_preds = torch.argmax(age_outs, dim=-1)
+            gen_preds = torch.argmax(gen_outs, dim=-1)
+            mask_preds = torch.argmax(mask_outs, dim=-1)
+            pred = age_preds + gen_preds*3 + mask_preds*6
             preds.extend(pred.cpu().numpy())
 
     info['ans'] = preds
@@ -79,6 +95,7 @@ def inference(data_dir, model_dir, output_dir, args):
 
 
 if __name__ == '__main__':
+    
     parser = argparse.ArgumentParser()
 
     # Data and model checkpoints directories
