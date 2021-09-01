@@ -1,5 +1,10 @@
 import multiprocessing
 from typing import Any
+from torch.utils.data import Dataset, Subset, random_split
+from torchvision import transforms
+from torchvision.transforms import *
+from PIL import Image
+
 from base_dataset import MaskSKFSplitByProfileDataset
 
 class KSSample():
@@ -52,3 +57,31 @@ class KSMaskDataset(MaskSKFSplitByProfileDataset):
         mask_label = self.get_mask_label(index)
 
         return image_transform, mask_label
+
+
+
+class KSestDataset(Dataset):
+    def __init__(self, img_paths, resize, mean=(0.548, 0.504, 0.479), std=(0.237, 0.247, 0.246)):
+        self.img_paths = img_paths
+        self.mean = mean
+        self.std = std
+
+        self.transform = transforms.Compose([
+            Resize(resize, Image.BILINEAR),
+            ToTensor(),
+            Normalize(mean=mean, std=std),
+        ])
+        
+
+    def __getitem__(self, index):
+        image = Image.open(self.img_paths[index])
+
+        if self.transform:
+            image = self.transform(image)
+        return image
+
+    def __len__(self):
+        return len(self.img_paths)
+
+    def set_transform(self, transform):
+        self.transform = transform

@@ -12,3 +12,12 @@ class TextLogger():
         with open(self.saveDir, mode='a+', encoding='utf-8') as f:
             print(msg)
             f.writelines(f'\n[{now}]\t{msg}')
+
+
+def create_path(path: str):
+    if os.path.exists(path):
+        return
+    parent, child = os.path.split(path)
+    if not os.path.exists(parent):
+        create_path(parent)
+    os.mkdir(path)
