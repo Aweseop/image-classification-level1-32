@@ -5,95 +5,59 @@ from torchvision.transforms import *
 import torch
 from PIL import Image
 
-class SWSample():
-    def __call__(self, *args: Any, **kwds: Any) -> Any:
-        print('hello im sw')
+import albumentations
+import albumentations.pytorch
 
 
-class BaseAugmentation:
+class BaseAlbumentation:
     def __init__(self, resize, mean, std, **args):
-        self.transform = transforms.Compose([
-            Resize(resize, Image.BILINEAR),
-            ToTensor(),
-            Normalize(mean=mean, std=std),
+        self.preTransform = albumentations.Compose([
+            albumentations.Resize(resize[0], resize[1]),
+        ])
+
+        self.customTransform = albumentations.Compose([])
+        self.afterTransform = albumentations.Compose([
+            albumentations.Normalize(mean, std),
+            albumentations.pytorch.ToTensorV2()
         ])
 
     def __call__(self, image):
-        return self.transform(image)
+        image = ChangeCV()(image)
+        image = self.preTransform(image=image)['image']
+        image = self.customTransform(image=image)['image']
+        # image = ChangePILcolor()(image)
+        image = self.afterTransform(image=image)['image']
+        return image
 
-class ColorJitter1111Augmentation:
+class ISO_FLIP_Albumentation(BaseAlbumentation):
     def __init__(self, resize, mean, std, **args):
-        self.transform = transforms.Compose([
-            Resize(resize, Image.BILINEAR),
-            ColorJitter(0.1, 0.1, 0.1, 0.1),    
-            ToTensor(),
-            Normalize(mean=mean, std=std),
+        super().__init__(resize, mean, std, **args)
+        self.customTransform = albumentations.Compose([
+            albumentations.Flip(),
+            albumentations.ISONoise()
         ])
 
-    def __call__(self, image):
-        return self.transform(image)
-
-class ColorJitter1000Augmentation:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = transforms.Compose([
-            Resize(resize, Image.BILINEAR),
-            ColorJitter(0.1, 0, 0, 0),    
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-
-class ColorJitter0100Augmentation:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = transforms.Compose([
-            Resize(resize, Image.BILINEAR),
-            ColorJitter(0, 0.1, 0, 0),    
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-
-class ColorJitter0010Augmentation:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = transforms.Compose([
-            Resize(resize, Image.BILINEAR),
-            ColorJitter(0, 0, 0.1, 0),    
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-
-class ColorJitter0001Augmentation:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = transforms.Compose([
-            Resize(resize, Image.BILINEAR),
-            ColorJitter(0, 0, 0, 0.1),    
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
-
-
-class GaussianNoiseAugmentation:
-    def __init__(self, resize, mean, std, **args):
-        self.transform = transforms.Compose([
-            Resize(resize, Image.BILINEAR),  
-            ToTensor(),
-            Normalize(mean=mean, std=std),
-            AddGaussianNoise()
-        ])
-
-    def __call__(self, image):
-        return self.transform(image)
 
 # --------- Custom transform -----------
 
-from base_dataset import AddGaussianNoise
+
+import cv2
+import numpy as np
+class ChangeCV(object):
+
+    def __call__(self, image):
+        numpy_image=np.array(image)
+        return cv2.cvtColor(numpy_image, cv2.COLOR_RGB2BGR)
+
+    def __repr__(self):
+        return self.__class__.__name__
+
+
+class ChangePILcolor(object):
+
+    def __call__(self, image):
+        numpy_image=np.array(image)
+        return cv2.cvtColor(numpy_image, cv2.COLOR_BGR2RGB)
+
+    def __repr__(self):
+        return self.__class__.__name__
