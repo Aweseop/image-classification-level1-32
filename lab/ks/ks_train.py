@@ -1,3 +1,6 @@
+import sys
+sys.path.append('/opt/ml/image-classification-level1-32')
+
 import argparse
 import glob
 import json
@@ -25,6 +28,20 @@ from dataset import MaskBaseDataset
 from loss import create_criterion
 from util import TextLogger, create_path
 
+def load_model(saved_model, num_classes, device):
+    model_cls = getattr(import_module("model"), args.model)
+    model = model_cls(
+        num_classes=num_classes
+    )
+
+    # tarpath = os.path.join(saved_model, 'best.tar.gz')
+    # tar = tarfile.open(tarpath, 'r:gz')
+    # tar.extractall(path=saved_model)
+
+    model_path = os.path.join(saved_model, 'best.pth')
+    model.load_state_dict(torch.load(model_path, map_location=device))
+
+    return model
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -139,12 +156,26 @@ def train(data_dir, model_dir, args):
         drop_last=True,
     )
 
+    category = {
+        "age": {
+            "num_classes": 3
+        }
+    }
+
     # -- model
     model_module = getattr(import_module("model"), args.model)  # default: BaseModel
     model = model_module(
         num_classes=num_classes
     ).to(device)
     model = torch.nn.DataParallel(model)
+
+    
+    age_model = load_model(os.path.join('./lab', args.my_name, args.model_dir, "age_cls"), 3, device).to(device)
+    gen_model = load_model(os.path.join('./lab', args.my_name, args.model_dir, "gen_cls"), 2, device).to(device)
+    mask_model = load_model(os.path.join('./lab', args.my_name, args.model_dir, "mask_cls"), 3, device).to(device)
+    age_model = torch.nn.DataParallel(age_model)
+    gen_model = torch.nn.DataParallel(gen_model)
+    mask_model = torch.nn.DataParallel(mask_model)
 
     # -- loss & metric
     criterion = create_criterion(args.criterion)  # default: cross_entropy
@@ -181,6 +212,7 @@ def train(data_dir, model_dir, args):
         loss_value = 0
         matches = 0
         for idx, train_batch in enumerate(train_loader):
+            break
             inputs, labels = train_batch
             inputs = inputs.to(device)
             labels = labels.to(device)
@@ -212,12 +244,17 @@ def train(data_dir, model_dir, args):
                 loss_value = 0
                 matches = 0
 
-        scheduler.step()
+        # scheduler.step()
 
         # val loop
         with torch.no_grad():
             print("Calculating validation results...")
             model.eval()
+            age_model.eval()
+            gen_model.eval()
+            mask_model.eval()
+
+
             val_loss_items = []
             val_acc_items = []
             f1_labels = []
@@ -228,12 +265,22 @@ def train(data_dir, model_dir, args):
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
-                outs = model(inputs)
-                preds = torch.argmax(outs, dim=-1)
+                # outs = model(inputs)
+                # preds = torch.argmax(outs, dim=-1)
 
-                loss_item = criterion(outs, labels).item()
+                age_outs = age_model(inputs)
+                gen_outs = gen_model(inputs)
+                mask_outs = mask_model(inputs)
+
+                age_preds = torch.argmax(age_outs, dim=-1)
+                gen_preds = torch.argmax(gen_outs, dim=-1)
+                mask_preds = torch.argmax(mask_outs, dim=-1)
+
+                preds = age_preds + gen_preds*3 + mask_preds*6
+                # print(preds)
+                # loss_item = criterion(outs, labels).item()
                 acc_item = (labels == preds).sum().item()
-                val_loss_items.append(loss_item)
+                # val_loss_items.append(loss_item)
                 val_acc_items.append(acc_item)
 
                 f1_labels = np.concatenate([f1_labels, labels.cpu().numpy()])
