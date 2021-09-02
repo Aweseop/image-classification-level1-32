@@ -3,4 +3,3 @@
 # ignore individual files
 **/model/
 **/output/
-train*.sh
