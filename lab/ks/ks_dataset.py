@@ -80,7 +80,7 @@ class KSAgeAdjDataset(MaskSKFSplitByProfileDataset):
                     cnt += 1
 
     def _adjust_age(self, age):
-        if age >= 58:
+        if age >= 59:
             return 60
         else:
             return age
