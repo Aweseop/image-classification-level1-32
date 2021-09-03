@@ -1,5 +1,5 @@
 **/__pycache__
 
-# ignore individual models
+# ignore individual files
 **/model/
-train*.sh
+**/output/

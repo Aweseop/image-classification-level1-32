@@ -23,7 +23,7 @@ from sklearn.metrics import f1_score
 
 from dataset import MaskBaseDataset
 from loss import create_criterion
-from util import TextLogger
+from util import TextLogger, create_path
 
 
 def seed_everything(seed):
@@ -93,12 +93,6 @@ def increment_path(path, exist_ok=False):
         create_path(newPath)
         return newPath
 
-def create_path(path: str):
-    parent, child = os.path.split(path)
-    if not os.path.exists(parent):
-        create_path(parent)
-    os.mkdir(path)
-        
 def train(data_dir, model_dir, args):
     seed_everything(args.seed)
 

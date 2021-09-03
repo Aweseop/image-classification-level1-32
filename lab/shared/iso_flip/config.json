@@ -1,0 +1,23 @@
+{
+    "seed": 32,
+    "epochs": 5,
+    "dataset": "MaskSKFSplitByProfileDataset",
+    "augmentation": "ISO_FlipAlbumentation",
+    "resize": [
+        512,
+        384
+    ],
+    "batch_size": 64,
+    "valid_batch_size": 200,
+    "model": "ResNet50",
+    "optimizer": "Adam",
+    "lr": 3e-05,
+    "val_ratio": 0.2,
+    "criterion": "cross_entropy",
+    "lr_decay_step": 5,
+    "log_interval": 20,
+    "name": "iso_flip",
+    "data_dir": "/opt/ml/input/data/train/images",
+    "model_dir": "./model",
+    "my_name": "sw"
+}
