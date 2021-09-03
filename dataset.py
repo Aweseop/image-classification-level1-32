@@ -19,4 +19,4 @@ from lab.js.js_dataset import *
 from lab.ks.ks_dataset import *
 from lab.sw.sw_dataset import *
 from lab.th.th_dataset import *
-from lab.sw.sw_dataset import *
+from lab.yy.yy_dataset import *
